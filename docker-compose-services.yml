@@ -10,6 +10,15 @@ services:
     restart: always
     ports:
       - "3030:3030"
+    depends_on:
+      - postgres
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3030/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     environment:
       # Multi-AZ database endpoints (use load balancer or cluster endpoint)
       - SPRING_DATASOURCE_URL=${POSTGRES_CLUSTER_URL:-jdbc:postgresql://postgres:5432/auth_service_db}
@@ -28,6 +37,16 @@ services:
     restart: always
     ports:
       - "3031:3031"
+    depends_on:
+      - mongodb
+      - kafka
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3031/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     environment:
       # Multi-AZ MongoDB cluster URI
       - SPRING_DATA_MONGODB_URI=${MONGODB_CLUSTER_URI:-mongodb://mongodb:27017/driver-db}
@@ -44,6 +63,15 @@ services:
     restart: always
     ports:
       - "3032:3032"
+    depends_on:
+      - mongodb
+      - kafka
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3032/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     environment:
       # Multi-AZ MongoDB cluster URI
       - SPRING_DATA_MONGODB_URI=${MONGODB_CLUSTER_URI:-mongodb://mongodb:27017/trip-db}

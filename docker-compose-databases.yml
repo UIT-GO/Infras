@@ -17,7 +17,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - /data/postgres:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U admin -d auth_service_db"]
       interval: 10s
@@ -34,7 +34,7 @@ services:
     ports:
       - "27017:27017"
     volumes:
-      - mongo_data:/data/db
+      - /data/mongodb:/data/db
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 10s
@@ -53,7 +53,7 @@ services:
     ports:
       - "6379:6379"
     volumes:
-      - redis_data:/data
+      - /data/redis:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -71,7 +71,7 @@ services:
     depends_on:
       - redis
     volumes:
-      - redisinsight_data:/db
+      - /data/redisinsight:/db
     networks:
       - app-network
 
@@ -83,11 +83,3 @@ networks:
     driver: bridge
     name: microservices-network
 
-# ==========================
-#  Volumes
-# ==========================
-volumes:
-  postgres_data:
-  mongo_data:
-  redis_data:
-  redisinsight_data:
