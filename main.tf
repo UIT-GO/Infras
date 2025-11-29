@@ -117,6 +117,10 @@ resource "aws_instance" "ec2_az1" {
     Name = "multi-az-ec2-a"
   }
   key_name = "EC2-1"
+  root_block_device {
+    volume_size = 16
+    volume_type = "gp2"
+  }
 }
 
 resource "aws_instance" "ec2_az2" {
@@ -129,6 +133,10 @@ resource "aws_instance" "ec2_az2" {
     Name = "multi-az-ec2-b"
   }
   key_name = "EC2-2"
+  root_block_device {
+    volume_size = 16
+    volume_type = "gp2"
+  }
 }
 
 # -----------------------------
