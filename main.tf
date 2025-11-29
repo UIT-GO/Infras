@@ -152,20 +152,72 @@ resource "aws_lb" "alb" {
   ]
 }
 
-resource "aws_lb_target_group" "tg" {
-  name     = "multi-az-tg"
-  port     = 80
+# Auth Service Target Group
+resource "aws_lb_target_group" "auth_tg" {
+  name     = "auth-service-tg"
+  port     = 3030
   protocol = "HTTP"
   vpc_id   = aws_vpc.demo_vpc.id
 
   health_check {
-    path                = "/"
-    port                = "80"
+    path                = "/actuator/health"
+    port                = "3030"
     protocol            = "HTTP"
     healthy_threshold   = 2
     unhealthy_threshold = 2
-    interval            = 10
+    interval            = 30
     timeout             = 5
+    matcher             = "200"
+  }
+
+  tags = {
+    Name = "auth-service-target-group"
+  }
+}
+
+# Driver Service Target Group
+resource "aws_lb_target_group" "driver_tg" {
+  name     = "driver-service-tg"
+  port     = 3031
+  protocol = "HTTP"
+  vpc_id   = aws_vpc.demo_vpc.id
+
+  health_check {
+    path                = "/actuator/health"
+    port                = "3031"
+    protocol            = "HTTP"
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+    interval            = 30
+    timeout             = 5
+    matcher             = "200"
+  }
+
+  tags = {
+    Name = "driver-service-target-group"
+  }
+}
+
+# Trip Service Target Group
+resource "aws_lb_target_group" "trip_tg" {
+  name     = "trip-service-tg"
+  port     = 3032
+  protocol = "HTTP"
+  vpc_id   = aws_vpc.demo_vpc.id
+
+  health_check {
+    path                = "/actuator/health"
+    port                = "3032"
+    protocol            = "HTTP"
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+    interval            = 30
+    timeout             = 5
+    matcher             = "200"
+  }
+
+  tags = {
+    Name = "trip-service-target-group"
   }
 }
 
@@ -175,26 +227,167 @@ resource "aws_lb_listener" "listener" {
   protocol          = "HTTP"
 
   default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.tg.arn
+    type = "fixed-response"
+    fixed_response {
+      content_type = "text/plain"
+      message_body = "Welcome to Multi-AZ Microservices API\nAvailable endpoints:\n/api/auth/*\n/api/driver/*\n/api/trip/*"
+      status_code  = "200"
+    }
   }
 }
 
-resource "aws_lb_target_group_attachment" "az1_attach" {
-  target_group_arn = aws_lb_target_group.tg.arn
-  target_id        = aws_instance.ec2_az1.id
-  port             = 80
+# Auth Service Listener Rule
+resource "aws_lb_listener_rule" "auth_rule" {
+  listener_arn = aws_lb_listener.listener.arn
+  priority     = 100
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.auth_tg.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/api/auth/*"]
+    }
+  }
+
+  tags = {
+    Name = "auth-service-rule"
+  }
 }
 
-resource "aws_lb_target_group_attachment" "az2_attach" {
-  target_group_arn = aws_lb_target_group.tg.arn
+# Driver Service Listener Rule
+resource "aws_lb_listener_rule" "driver_rule" {
+  listener_arn = aws_lb_listener.listener.arn
+  priority     = 200
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.driver_tg.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/api/drivers/*"]
+    }
+  }
+
+  tags = {
+    Name = "driver-service-rule"
+  }
+}
+
+# Trip Service Listener Rule
+resource "aws_lb_listener_rule" "trip_rule" {
+  listener_arn = aws_lb_listener.listener.arn
+  priority     = 300
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.trip_tg.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/api/trips/*"]
+    }
+  }
+
+  tags = {
+    Name = "trip-service-rule"
+  }
+}
+
+# Health Check Rule (routes to auth service for general health)
+resource "aws_lb_listener_rule" "health_rule" {
+  listener_arn = aws_lb_listener.listener.arn
+  priority     = 400
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.auth_tg.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/actuator/health", "/health"]
+    }
+  }
+
+  tags = {
+    Name = "health-check-rule"
+  }
+}
+
+# Auth Service Target Group Attachments
+resource "aws_lb_target_group_attachment" "auth_az1" {
+  target_group_arn = aws_lb_target_group.auth_tg.arn
+  target_id        = aws_instance.ec2_az1.id
+  port             = 3030
+}
+
+resource "aws_lb_target_group_attachment" "auth_az2" {
+  target_group_arn = aws_lb_target_group.auth_tg.arn
   target_id        = aws_instance.ec2_az2.id
-  port             = 80
+  port             = 3030
+}
+
+# Driver Service Target Group Attachments
+resource "aws_lb_target_group_attachment" "driver_az1" {
+  target_group_arn = aws_lb_target_group.driver_tg.arn
+  target_id        = aws_instance.ec2_az1.id
+  port             = 3031
+}
+
+resource "aws_lb_target_group_attachment" "driver_az2" {
+  target_group_arn = aws_lb_target_group.driver_tg.arn
+  target_id        = aws_instance.ec2_az2.id
+  port             = 3031
+}
+
+# Trip Service Target Group Attachments
+resource "aws_lb_target_group_attachment" "trip_az1" {
+  target_group_arn = aws_lb_target_group.trip_tg.arn
+  target_id        = aws_instance.ec2_az1.id
+  port             = 3032
+}
+
+resource "aws_lb_target_group_attachment" "trip_az2" {
+  target_group_arn = aws_lb_target_group.trip_tg.arn
+  target_id        = aws_instance.ec2_az2.id
+  port             = 3032
 }
 
 # -----------------------------
-# Output
+# Outputs
 # -----------------------------
 output "ALB_URL" {
-  value = aws_lb.alb.dns_name
+  description = "Application Load Balancer DNS name"
+  value       = aws_lb.alb.dns_name
+}
+
+output "ALB_ZONE_ID" {
+  description = "Application Load Balancer Zone ID"
+  value       = aws_lb.alb.zone_id
+}
+
+output "EC2_AZ1_IP" {
+  description = "EC2 AZ1 Public IP"
+  value       = aws_instance.ec2_az1.public_ip
+}
+
+output "EC2_AZ2_IP" {
+  description = "EC2 AZ2 Public IP"
+  value       = aws_instance.ec2_az2.public_ip
+}
+
+output "API_ENDPOINTS" {
+  description = "Available API endpoints through ALB"
+  value = {
+    "Auth Service"   = "http://${aws_lb.alb.dns_name}/api/auth/"
+    "Driver Service" = "http://${aws_lb.alb.dns_name}/api/drivers/"
+    "Trip Service"   = "http://${aws_lb.alb.dns_name}/api/trips/"
+    "Health Check"   = "http://${aws_lb.alb.dns_name}/actuator/health"
+  }
 }
