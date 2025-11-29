@@ -2,79 +2,48 @@ version: '3.9'
 
 services:
   # ==========================
-  #  Kafka & Zookeeper - Multi-AZ Setup
+  #  Kafka KRaft - Multi-AZ Setup (No Zookeeper)
   # ==========================
-  
-  zookeeper:
-    image: confluentinc/cp-zookeeper:7.5.0
-    container_name: zookeeper
-    restart: always
-    ports:
-      - "2181:2181"
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-      ZOOKEEPER_SERVER_ID: ${ZK_SERVER_ID:-1}
-      # Multi-node ZK cluster config
-      ZOOKEEPER_SERVERS: ${ZK_SERVERS:-server.1=zookeeper:2888:3888}
-    healthcheck:
-      test: ["CMD-SHELL", "echo stat | nc localhost 2181"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - app-network
-    volumes:
-      - zookeeper_data:/var/lib/zookeeper/data
-      - zookeeper_log:/var/lib/zookeeper/log
 
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     container_name: kafka
     restart: always
-    ports:
-      - "9092:9092"
-      - "9093:9093"
+    network_mode: host
     environment:
-      KAFKA_BROKER_ID: ${KAFKA_BROKER_ID:-1}
-      KAFKA_ZOOKEEPER_CONNECT: ${KAFKA_ZOOKEEPER_CONNECT:-zookeeper:2181}
-      # Multi-AZ advertised listeners - use private IP
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://${KAFKA_ADVERTISED_HOST:-kafka}:9092,PLAINTEXT_HOST://localhost:9093
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      # KRaft Configuration
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_NODE_ID: ${KAFKA_NODE_ID:-1}
+      KAFKA_CONTROLLER_QUORUM_VOTERS: ${KAFKA_CONTROLLER_QUORUM_VOTERS:-1@localhost:9093}
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      
+      # Listeners - use private IP for multi-AZ
+      KAFKA_LISTENERS: PLAINTEXT://${PRIVATE_IP:-0.0.0.0}:9092,CONTROLLER://${PRIVATE_IP:-0.0.0.0}:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://${PRIVATE_IP:-localhost}:9092
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      # Multi-broker replication settings
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: ${KAFKA_REPLICATION_FACTOR:-2}
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: ${KAFKA_MIN_ISR:-2}
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: ${KAFKA_REPLICATION_FACTOR:-2}
+      
+      # Multi-AZ replication settings
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: ${KAFKA_REPLICATION_FACTOR:-1}
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: ${KAFKA_REPLICATION_FACTOR:-1}
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: ${KAFKA_MIN_ISR:-1}
+      KAFKA_DEFAULT_REPLICATION_FACTOR: ${KAFKA_REPLICATION_FACTOR:-1}
+      KAFKA_MIN_IN_SYNC_REPLICAS: ${KAFKA_MIN_ISR:-1}
+      
+      # Log and storage settings
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
       KAFKA_LOG_RETENTION_HOURS: 168
-      KAFKA_MIN_INSYNC_REPLICAS: ${KAFKA_MIN_ISR:-2}
-    depends_on:
-      zookeeper:
-        condition: service_healthy
+      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
     healthcheck:
       test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 || exit 1"]
       interval: 15s
       timeout: 10s
       retries: 10
       start_period: 30s
-    networks:
-      - app-network
     volumes:
-      - kafka_data:/var/lib/kafka/data
-
-# ==========================
-#  Networks
-# ==========================
-networks:
-  app-network:
-    driver: bridge
-    name: microservices-network
+      - kafka_data:/tmp/kraft-combined-logs
 
 # ==========================
 #  Volumes
 # ==========================
 volumes:
-  zookeeper_data:
-  zookeeper_log:
   kafka_data:

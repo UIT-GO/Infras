@@ -109,7 +109,7 @@ locals {
 # -----------------------------
 resource "aws_instance" "ec2_az1" {
   ami           = "ami-00002920817981683"   # UPDATE THIS
-  instance_type = "t3.micro"
+  instance_type = "t3.large"
   subnet_id     = aws_subnet.subnet_az1.id
   security_groups = [aws_security_group.ec2_sg.id]
   user_data     = local.user_data
@@ -125,7 +125,7 @@ resource "aws_instance" "ec2_az1" {
 
 resource "aws_instance" "ec2_az2" {
   ami           = "ami-00002920817981683"   # UPDATE THIS
-  instance_type = "t3.micro"
+  instance_type = "t3.large"
   subnet_id     = aws_subnet.subnet_az2.id
   security_groups = [aws_security_group.ec2_sg.id]
   user_data     = local.user_data
