@@ -1,0 +1,62 @@
+version: '3.9'
+
+services:
+  # ==========================
+  #  Microservices - Multi-AZ Setup
+  # ==========================
+
+  auth-service:
+    image: mainguyenuit/auth-service:latest
+    container_name: auth-service
+    restart: always
+    ports:
+      - "3030:3030"
+    environment:
+      # Multi-AZ database endpoints (use load balancer or cluster endpoint)
+      - SPRING_DATASOURCE_URL=${POSTGRES_CLUSTER_URL:-jdbc:postgresql://postgres:5432/auth_service_db}
+      - SPRING_DATASOURCE_USERNAME=admin
+      - SPRING_DATASOURCE_PASSWORD=password
+      # Multi-AZ Redis endpoints
+      - SPRING_DATA_REDIS_HOST=${REDIS_CLUSTER_HOST:-redis}
+      - SPRING_DATA_REDIS_PORT=6379
+      - SPRING_DATA_REDIS_CLUSTER_NODES=${REDIS_CLUSTER_NODES:-}
+    networks:
+      - app-network
+
+  driver-service:
+    image: mainguyenuit/driver-service:latest
+    container_name: driver-service
+    restart: always
+    ports:
+      - "3031:3031"
+    environment:
+      # Multi-AZ MongoDB cluster URI
+      - SPRING_DATA_MONGODB_URI=${MONGODB_CLUSTER_URI:-mongodb://mongodb:27017/driver-db}
+      # Multi-AZ Kafka cluster bootstrap servers
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS:-kafka:9092}
+      - SPRING_DATA_REDIS_HOST=${REDIS_CLUSTER_HOST:-redis}
+      - SPRING_DATA_REDIS_PORT=6379
+    networks:
+      - app-network
+
+  trip-service:
+    image: mainguyenuit/trip-service:latest
+    container_name: trip-service
+    restart: always
+    ports:
+      - "3032:3032"
+    environment:
+      # Multi-AZ MongoDB cluster URI
+      - SPRING_DATA_MONGODB_URI=${MONGODB_CLUSTER_URI:-mongodb://mongodb:27017/trip-db}
+      # Multi-AZ Kafka cluster bootstrap servers
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS:-kafka:9092}
+    networks:
+      - app-network
+
+# ==========================
+#  Networks
+# ==========================
+networks:
+  app-network:
+    driver: bridge
+    name: microservices-network

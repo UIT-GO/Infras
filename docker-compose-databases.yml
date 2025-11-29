@@ -1,0 +1,94 @@
+version: '3.9'
+
+services:
+  # ==========================
+  #  Databases & Cache - Multi-AZ Setup
+  # ==========================
+
+  postgres:
+    image: postgres:16.0
+    container_name: postgres_container
+    restart: always
+    environment:
+      POSTGRES_DB: auth_service_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+      # Multi-AZ replication config (set POSTGRES_MASTER_SERVICE for replica)
+      POSTGRES_MASTER_SERVICE: ${POSTGRES_MASTER_HOST:-}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d auth_service_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  mongodb:
+    image: mongo:6.0
+    container_name: mongodb
+    restart: always
+    command: mongod --replSet rs0 --bind_ip_all
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  redis:
+    image: redis:alpine
+    container_name: redis
+    restart: always
+    command: >
+      redis-server
+      ${REDIS_REPLICA_OF:+--replicaof $REDIS_MASTER_HOST 6379}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - app-network
+
+  redisinsight:
+    image: redislabs/redisinsight:latest
+    container_name: redisinsight
+    restart: always
+    ports:
+      - "8001:5540"
+    depends_on:
+      - redis
+    volumes:
+      - redisinsight_data:/db
+    networks:
+      - app-network
+
+# ==========================
+#  Networks
+# ==========================
+networks:
+  app-network:
+    driver: bridge
+    name: microservices-network
+
+# ==========================
+#  Volumes
+# ==========================
+volumes:
+  postgres_data:
+  mongo_data:
+  redis_data:
+  redisinsight_data:
