@@ -101,6 +101,42 @@ locals {
     # cd /home/ec2-user/app
     # docker-compose up -d
 
+    # Install CloudWatch Agent for system logs
+    yum install -y amazon-cloudwatch-agent
+    
+# Create CloudWatch Agent config in /tmp
+cat > /tmp/cloudwatch-config.json <<'EOL'
+{
+  "logs": {
+    "logs_collected": {
+      "files": {
+        "collect_list": [
+          {
+            "file_path": "/var/log/messages",
+            "log_group_name": "/ec2/system/messages",
+            "log_stream_name": "{instance_id}"
+          },
+          {
+            "file_path": "/var/log/secure",
+            "log_group_name": "/ec2/system/secure",
+            "log_stream_name": "{instance_id}"
+          },
+          {
+            "file_path": "/var/log/docker",
+            "log_group_name": "/ec2/docker/logs",
+            "log_stream_name": "{instance_id}"
+          }
+        ]
+      }
+    }
+  }
+}
+EOL
+
+# Start CloudWatch Agent with proper permissions
+sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+  -a fetch-config -m ec2 -c file:/tmp/cloudwatch-config.json -s
+
   EOF
 }
 
