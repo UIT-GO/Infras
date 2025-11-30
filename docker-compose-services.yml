@@ -13,6 +13,13 @@ services:
     depends_on:
       - postgres
       - redis
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: ap-southeast-1
+        awslogs-group: /microservices/auth-service
+        awslogs-stream: auth-service-${EC2_INSTANCE_ID:-default}
+        awslogs-create-group: "true"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3030/actuator/health"]
       interval: 30s
@@ -40,6 +47,13 @@ services:
       - mongodb
       - kafka
       - redis
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: ap-southeast-1
+        awslogs-group: /microservices/driver-service
+        awslogs-stream: driver-service-${EC2_INSTANCE_ID:-default}
+        awslogs-create-group: "true"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3031/actuator/health"]
       interval: 30s
@@ -65,6 +79,13 @@ services:
     depends_on:
       - mongodb
       - kafka
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: ap-southeast-1
+        awslogs-group: /microservices/trip-service
+        awslogs-stream: trip-service-${EC2_INSTANCE_ID:-default}
+        awslogs-create-group: "true"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3032/actuator/health"]
       interval: 30s

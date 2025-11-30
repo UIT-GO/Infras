@@ -113,6 +113,7 @@ resource "aws_instance" "ec2_az1" {
   subnet_id     = aws_subnet.subnet_az1.id
   security_groups = [aws_security_group.ec2_sg.id]
   user_data     = local.user_data
+  iam_instance_profile   = aws_iam_instance_profile.ec2_profile.name
   tags = {
     Name = "multi-az-ec2-a"
   }
@@ -129,6 +130,7 @@ resource "aws_instance" "ec2_az2" {
   subnet_id     = aws_subnet.subnet_az2.id
   security_groups = [aws_security_group.ec2_sg.id]
   user_data     = local.user_data
+  iam_instance_profile   = aws_iam_instance_profile.ec2_profile.name
   tags = {
     Name = "multi-az-ec2-b"
   }
@@ -230,7 +232,7 @@ resource "aws_lb_listener" "listener" {
     type = "fixed-response"
     fixed_response {
       content_type = "text/plain"
-      message_body = "Welcome to Multi-AZ Microservices API\nAvailable endpoints:\n/api/auth/*\n/api/driver/*\n/api/trip/*"
+      message_body = "Welcome to Multi-AZ Microservices API\nAvailable endpoints:\n/api/auth/*\n/api/drivers/*\n/api/trips/*"
       status_code  = "200"
     }
   }
@@ -318,6 +320,56 @@ resource "aws_lb_listener_rule" "health_rule" {
   tags = {
     Name = "health-check-rule"
   }
+}
+
+# CloudWatch Logs IAM Role
+resource "aws_iam_role" "ec2_cloudwatch_role" {
+  name = "ec2-cloudwatch-logs-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+      }
+    ]
+  })
+
+  tags = {
+    Name = "EC2 CloudWatch Logs Role"
+  }
+}
+
+# CloudWatch Logs IAM Policy
+resource "aws_iam_role_policy" "ec2_cloudwatch_policy" {
+  name = "ec2-cloudwatch-logs-policy"
+  role = aws_iam_role.ec2_cloudwatch_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream", 
+          "logs:PutLogEvents",
+          "logs:DescribeLogStreams"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+# Instance Profile
+resource "aws_iam_instance_profile" "ec2_profile" {
+  name = "ec2-cloudwatch-profile"
+  role = aws_iam_role.ec2_cloudwatch_role.name
 }
 
 # Auth Service Target Group Attachments
